@@ -165,6 +165,20 @@ func (c *Cache) Fetch(key string, duration time.Duration, fetch func() (interfac
 	return c.set(key, value, duration, false), nil
 }
 
+func (c *Cache) FetchWithLock(key string, duration time.Duration, fetch func() (interface{}, error)) (*Item, error) {
+	item := c.Get(key)
+	if item != nil && !item.Expired() {
+		return item, nil
+	}
+	c.bucket(key).Lock()
+	value, err := fetch()
+	c.bucket(key).Unlock()
+	if err != nil {
+		return nil, err
+	}
+	return c.set(key, value, duration, false), nil
+}
+
 // Remove the item from the cache, return true if the item was present, false otherwise.
 func (c *Cache) Delete(key string) bool {
 	item := c.bucket(key).delete(key)
